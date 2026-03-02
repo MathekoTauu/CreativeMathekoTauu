@@ -1,31 +1,58 @@
-// Mobile menu toggle
+// ══════════════════════════════════
+// Creative Navigation — Sliding Indicator, Overlay Menu, Scroll Progress
+// ══════════════════════════════════
+
 const mobileMenu = document.getElementById('mobileMenu');
+const mobileOverlay = document.getElementById('mobileOverlay');
 const navLinks = document.getElementById('navLinks');
 
+// Toggle full-screen overlay menu
 mobileMenu.addEventListener('click', () => {
-    navLinks.classList.toggle('active');
     mobileMenu.classList.toggle('active');
+    mobileOverlay.classList.toggle('active');
+    document.body.style.overflow = mobileOverlay.classList.contains('active') ? 'hidden' : '';
 });
 
-// Close mobile menu when clicking on a link
-navLinks.addEventListener('click', (e) => {
-    if (e.target.tagName === 'A') {
-        navLinks.classList.remove('active');
-        mobileMenu.classList.remove('active');
-    }
-});
+// Close overlay when clicking a link
+if (mobileOverlay) {
+    mobileOverlay.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            mobileMenu.classList.remove('active');
+            mobileOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+    });
+}
 
 // Header scroll effect
 window.addEventListener('scroll', () => {
     const header = document.querySelector('header');
-    if (window.scrollY > 100) {
+    if (window.scrollY > 50) {
         header.classList.add('scrolled');
     } else {
         header.classList.remove('scrolled');
     }
 });
 
-// Active navigation link
+// ── Sliding Nav Indicator ──
+function moveIndicator() {
+    const indicator = document.getElementById('navIndicator');
+    const activeLink = document.querySelector('.nav-links .nav-link.active');
+    if (!indicator || !activeLink) return;
+
+    const li = activeLink.parentElement;
+    const navRect = navLinks.getBoundingClientRect();
+    const liRect = li.getBoundingClientRect();
+
+    indicator.style.left = (liRect.left - navRect.left) + 'px';
+    indicator.style.width = liRect.width + 'px';
+}
+
+// Run on load and resize
+window.addEventListener('load', moveIndicator);
+window.addEventListener('resize', moveIndicator);
+
+// Active navigation link with sliding indicator
 const sections = document.querySelectorAll('section');
 const navLinksItems = document.querySelectorAll('.nav-link');
 
@@ -38,12 +65,26 @@ window.addEventListener('scroll', () => {
         }
     });
 
+    let changed = false;
     navLinksItems.forEach(link => {
+        const wasActive = link.classList.contains('active');
         link.classList.remove('active');
         if (link.getAttribute('href') === `#${current}`) {
             link.classList.add('active');
+            if (!wasActive) changed = true;
         }
     });
+    if (changed) moveIndicator();
+});
+
+// ── Scroll Progress Bar ──
+window.addEventListener('scroll', () => {
+    const scrollProgress = document.getElementById('scrollProgress');
+    if (!scrollProgress) return;
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const scrollPercent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    scrollProgress.style.width = scrollPercent + '%';
 });
 
 // Smooth scrolling for navigation links
@@ -115,7 +156,7 @@ if (contactForm) {
         const originalText = btnText.textContent;
         
         // Show loading state
-        btnText.textContent = 'Sending... ⏳';
+        btnText.textContent = 'Sending...';
         submitBtn.disabled = true;
         
         try {
@@ -130,7 +171,7 @@ if (contactForm) {
             
             if (response.ok) {
                 // Success
-                formStatus.textContent = '✅ Thank you! Your message has been sent successfully. I\'ll get back to you as soon as possible!';
+                formStatus.textContent = 'Thank you! Your message has been sent. I\'ll get back to you soon.';
                 formStatus.className = 'form-status success';
                 formStatus.style.display = 'block';
                 this.reset();
@@ -144,7 +185,7 @@ if (contactForm) {
             }
         } catch (error) {
             // Error
-            formStatus.textContent = '❌ Oops! Something went wrong. Please try again or email me directly at mathekomasemola8@gmail.com';
+            formStatus.textContent = 'Something went wrong. Please try again or email me directly at mathekomasemola8@gmail.com';
             formStatus.className = 'form-status error';
             formStatus.style.display = 'block';
         } finally {
@@ -170,10 +211,45 @@ const observer = new IntersectionObserver((entries) => {
     });
 }, observerOptions);
 
-// Observe all sections for scroll animations
-document.querySelectorAll('section').forEach(section => {
+// Observe all sections for scroll animations (skip hero — it has its own animations)
+document.querySelectorAll('section:not(.hero)').forEach(section => {
     section.style.opacity = '0';
     section.style.transform = 'translateY(30px)';
     section.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
     observer.observe(section);
 });
+
+// Hero stat counter animation
+function animateCounters() {
+    const counters = document.querySelectorAll('.proof-number[data-target]');
+    counters.forEach(counter => {
+        const target = +counter.getAttribute('data-target');
+        const duration = 1600;
+        const startTime = performance.now();
+
+        function update(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            // Ease out cubic
+            const eased = 1 - Math.pow(1 - progress, 3);
+            counter.textContent = Math.round(target * eased);
+            if (progress < 1) {
+                requestAnimationFrame(update);
+            }
+        }
+        requestAnimationFrame(update);
+    });
+}
+
+// Trigger counters when proof bar is visible
+const heroObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            animateCounters();
+            heroObserver.disconnect();
+        }
+    });
+}, { threshold: 0.3 });
+
+const heroProof = document.querySelector('.hero-proof');
+if (heroProof) heroObserver.observe(heroProof);
